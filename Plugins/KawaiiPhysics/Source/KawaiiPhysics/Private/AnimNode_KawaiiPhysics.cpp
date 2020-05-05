@@ -743,14 +743,17 @@ void FAnimNode_KawaiiPhysics::ApplySimuateResult(FComponentSpacePoseContext& Out
 
 					FQuat twist;
 					FQuat swing;
-					if(s >= SMALL_NUMBER) {
+					if (s >= SMALL_NUMBER)
+					{
 						twist = FQuat(q.X / s, 0, 0, q.W / s);
 						swing = FQuat(0, (q.W * q.Y - q.X * q.Z) / s, (q.W * q.Z + q.X * q.Y) / s, s);
-						swing.Normalize();
 					}
-					else {
+					else
+					{
 						twist = FQuat::Identity;
 						swing = q;
+						swing.X = 0;
+						swing.Normalize();
 					}
 
 					if (twist.X < 0)
@@ -785,6 +788,8 @@ void FAnimNode_KawaiiPhysics::ApplySimuateResult(FComponentSpacePoseContext& Out
 					{
 						swing1 = FQuat::Identity;
 						swing2 = swing;
+						swing2.Y = 0;
+						swing2.Normalize();
 					}
 
 					if (swing1.Y < 0)
