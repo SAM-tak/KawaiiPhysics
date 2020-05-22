@@ -22,6 +22,14 @@ enum class EPlanarConstraint : uint8
 	Z,
 };
 
+UENUM()
+enum class EAngularLimitAxis : uint8
+{
+	X,
+	Y,
+	Z,
+};
+
 USTRUCT()
 struct FCollisionLimitBase
 {
@@ -78,6 +86,30 @@ struct FPlanarLimit : public FCollisionLimitBase
 
 	UPROPERTY()
 	FPlane Plane;
+};
+
+USTRUCT(BlueprintType)
+struct FAngularLimit
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, category = "KawaiiPhysics")
+	EAngularLimitAxis TwistAxis = EAngularLimitAxis::X;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, category = "KawaiiPhysics")
+	EAngularLimitAxis Swing1Axis = EAngularLimitAxis::Y;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (PinHiddenByDefault, UIMin = "0", UIMax = "180", ClampMin = "0", ClampMax = "180"), category = "KawaiiPhysics")
+	float TwistPositiveLimitAngle = 0.0f;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (PinHiddenByDefault, UIMin = "0", UIMax = "180", ClampMin = "0", ClampMax = "180"), category = "KawaiiPhysics")
+	float TwistNegativeLimitAngle = 0.0f;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (PinHiddenByDefault, UIMin = "0", UIMax = "180", ClampMin = "0", ClampMax = "180"), category = "KawaiiPhysics")
+	float Swing1LimitAngle = 0.0f;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (PinHiddenByDefault, UIMin = "0", UIMax = "180", ClampMin = "0", ClampMax = "180"), category = "KawaiiPhysics")
+	float Swing2LimitAngle = 0.0f;
+
+	bool IsValid()
+	{
+		return TwistAxis != Swing1Axis && (TwistPositiveLimitAngle > 0 || TwistNegativeLimitAngle > 0 || Swing1LimitAngle > 0 || Swing2LimitAngle > 0);
+	}
 };
 
 USTRUCT(BlueprintType)
@@ -216,6 +248,8 @@ public:
 	TArray< FCapsuleLimit> CapsuleLimits;
 	UPROPERTY(EditAnywhere, Category = "Planar Limits")
 	TArray< FPlanarLimit> PlanarLimits;
+	UPROPERTY(EditAnywhere, Category = "Angular Limits")
+	TArray<FAngularLimit> AngularLimits;
 
 	/** If the movement amount of one frame exceeds the threshold, ignore the movement  */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Teleport", meta = (PinHiddenByDefault))

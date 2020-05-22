@@ -698,14 +698,202 @@ void FAnimNode_KawaiiPhysics::ApplySimuateResult(FComponentSpacePoseContext& Out
 				}
 
 				FQuat SimulateRotation = FQuat::FindBetweenVectors(PoseVector, SimulateVector) * ParentBone.PoseRotation;
+
+				ParentBone.PrevRotation = SimulateRotation; // Store pre-clamped value to keep momentum.
+
+				// Swing-Twist Angular Limit
+				if (i < AngularLimits.Num() && AngularLimits[i].IsValid())
+				{
+					const auto& AngularLimit = AngularLimits[i];
+
+					FQuat q = ParentBone.PoseRotation.Inverse() * SimulateRotation;
+
+					// Make sure the scalar part is positive. Since quaternions have a double covering, q and -q represent the same orientation.
+					if (q.W < 0)
+					{
+						q.X = -q.X;
+						q.Y = -q.Y;
+						q.Z = -q.Z;
+						q.W = -q.W;
+					}
+
+					// swap axis if twist axis is not X or swing1 axis is not Y
+					if (AngularLimits[i].TwistAxis == EAngularLimitAxis::Y)
+					{
+						auto q2 = q;
+						if (AngularLimit.Swing1Axis == EAngularLimitAxis::X)
+						{
+							q.X = q2.Y;
+							q.Y = q2.X;
+							q.Z = q2.Z;
+						}
+						else if (AngularLimit.Swing1Axis == EAngularLimitAxis::Z)
+						{
+							q.X = q2.Y;
+							q.Y = q2.Z;
+							q.Z = q2.X;
+						}
+					}
+					else if (AngularLimit.TwistAxis == EAngularLimitAxis::Z)
+					{
+						auto q2 = q;
+						if (AngularLimit.Swing1Axis == EAngularLimitAxis::X)
+						{
+							q.X = q2.Z;
+							q.Y = q2.X;
+							q.Z = q2.Y;
+						}
+						else
+						{
+							q.X = q2.Z;
+							q.Z = q2.X;
+						}
+					}
+					else if (AngularLimit.Swing1Axis == EAngularLimitAxis::Z)
+					{
+						auto q2 = q;
+						q.Y = q2.Z;
+						q.Z = q2.Y;
+					}
+
+					// decomposition to swing and twist and clamp
+					// http://twvideo01.ubm-us.net/o1/vault/gdc2016/Presentations/VanDenBergen_Gino_Rotational_Joint_Limits.pdf
+					auto r = q.W * q.W + q.X * q.X;
+
+					float rx, ry, rz;
+
+					if (r >= SMALL_NUMBER)
+					{
+						auto s = FMath::InvSqrt(r);
+						rx = q.X * s;
+						ry = (q.W * q.Y - q.X * q.Z) * s;
+						rz = (q.W * q.Z + q.X * q.Y) * s;
+					}
+					else
+					{
+						// swing by 180 degrees is a singularity. We assume twist is zero.
+						rx = 0;
+						ry = q.Y;
+						rz = q.Z;
+					}
+
+					if (rx < 0)
+					{
+						auto max = FMath::Sin(0.5f * FMath::DegreesToRadians(-AngularLimit.TwistNegativeLimitAngle));
+						if (rx < max)
+						{
+							rx = max;
+						}
+					}
+					else
+					{
+						auto max = FMath::Sin(0.5f * FMath::DegreesToRadians(AngularLimit.TwistPositiveLimitAngle));
+						if (rx > max)
+						{
+							rx = max;
+						}
+					}
+
+					float A = FMath::Sin(0.5f * FMath::DegreesToRadians(AngularLimit.Swing1LimitAngle)); // horizontal radius (half width)
+					float B = FMath::Sin(0.5f * FMath::DegreesToRadians(AngularLimit.Swing2LimitAngle)); // vertical radius (half height)
+
+					// (ry, rz) outside the ellipse?
+					if ((FMath::Square(ry / A) + FMath::Square(rz / B) - 1) >= 0)
+					{
+						float t = 0;	 // It is assumed that (x, y) is close to the boundary of the ellipse, so t0 = 0 is a proper
+										 // intial value. Since our query point lies
+						// outside the ellipsoid the final t cannot be negative. We are solving: (x', y') for which
+						// x = x' * (1 + t / (mA * mA)) and y = y' * (1 + t / (mB * mB))  under the constraint that eval(x', y') ==
+						// 0.
+
+						int k = 50;
+						float real = FMath::Square(ry * A / (A * A + t)) + FMath::Square(rz * B / (B * B + t)) - 1;
+						// Calling the function using dual numbers. The result holds the function's value as real
+						// component and the derivative's value as dual component.
+						while (k != 0 && real > SMALL_NUMBER)
+						{
+							float dual = FMath::Square(ry * A / (A * A + 1)) + FMath::Square(rz * B / (B * B + 1)) - 1;
+							t -= real / dual;	 // Newton-Raphson step: t1 = t0 - F(t, x, y) / F'(t, x, y)
+							--k;
+							real = FMath::Square(ry * A / (A * A + t)) + FMath::Square(rz * B / (B * B + t)) - 1;
+						}
+
+						// Set the point (ry, rz) to the closest point on the boundary of the ellipse
+						ry *= A * A / (A * A + t);
+						rz *= B * B / (B * B + t);
+					}
+
+					FQuat twist(rx, 0, 0, FMath::Sqrt(FMath::Max(0.0f, 1 - rx * rx)));
+					FQuat swing(0, ry, rz, FMath::Sqrt(FMath::Max(0.0f, 1 - ry * ry - rz * rz)));
+
+					q = swing * twist;
+
+					// revert swaped axis
+					if (AngularLimit.TwistAxis == EAngularLimitAxis::Y)
+					{
+						auto q2 = q;
+						if (AngularLimit.Swing1Axis == EAngularLimitAxis::X)
+						{
+							q.X = q2.Y;
+							q.Y = q2.X;
+							q.Z = q2.Z;
+						}
+						else if (AngularLimit.Swing1Axis == EAngularLimitAxis::Z)
+						{
+							q.X = q2.Y;
+							q.Y = q2.Z;
+							q.Z = q2.X;
+						}
+					}
+					else if (AngularLimit.TwistAxis == EAngularLimitAxis::Z)
+					{
+						auto q2 = q;
+						if (AngularLimit.Swing1Axis == EAngularLimitAxis::X)
+						{
+							q.X = q2.Z;
+							q.Y = q2.X;
+							q.Z = q2.Y;
+						}
+						else
+						{
+							q.X = q2.Z;
+							q.Z = q2.X;
+						}
+					}
+					else if (AngularLimit.Swing1Axis == EAngularLimitAxis::Z)
+					{
+						auto q2 = q;
+						q.Y = q2.Z;
+						q.Z = q2.Y;
+					}
+
+					SimulateRotation = ParentBone.PoseRotation * q;
+				}
+				
 				OutBoneTransforms[Bone.ParentIndex].Transform.SetRotation(SimulateRotation);
-				ParentBone.PrevRotation = SimulateRotation;
 			}
 		}
 
 		if (Bone.BoneRef.BoneIndex >= 0 && !Bone.bDummy)
 		{
 			OutBoneTransforms[i].Transform.SetLocation(Bone.Location);
+		}
+	}
+
+	if (AngularLimits.Num() > 0)
+	{
+		// Recalc positon
+		// don't change simulated location to keep momentum.
+		for (int i = 1; i < ModifyBones.Num(); ++i)
+		{
+			FKawaiiPhysicsModifyBone& Bone = ModifyBones[i];
+			if (Bone.BoneRef.BoneIndex >= 0 && Bone.ParentIndex >= 0 && !Bone.bDummy)
+			{
+				FKawaiiPhysicsModifyBone& ParentBone = ModifyBones[Bone.ParentIndex];
+				auto BoneLength = (Bone.PoseLocation - ParentBone.PoseLocation).Size();
+				auto& ParentTransform = OutBoneTransforms[Bone.ParentIndex].Transform;
+				OutBoneTransforms[i].Transform.SetLocation(ParentTransform.TransformPosition(GetBoneForwardVector(FQuat::Identity)* BoneLength));
+			}
 		}
 	}
 
