@@ -702,9 +702,9 @@ void FAnimNode_KawaiiPhysics::ApplySimuateResult(FComponentSpacePoseContext& Out
 				ParentBone.PrevRotation = SimulateRotation; // Store pre-clamped value to keep momentum.
 
 				// Swing-Twist Angular Limit
-				if (i < AngularLimits.Num() && AngularLimits[i].IsValid())
+				if (i - 1 < AngularLimits.Num() && AngularLimits[i - 1].IsValid())
 				{
-					const auto& AngularLimit = AngularLimits[i];
+					const auto& AngularLimit = AngularLimits[i - 1];
 
 					FQuat q = ParentBone.PoseRotation.Inverse() * SimulateRotation;
 
@@ -718,42 +718,31 @@ void FAnimNode_KawaiiPhysics::ApplySimuateResult(FComponentSpacePoseContext& Out
 					}
 
 					// swap axis if twist axis is not X or swing1 axis is not Y
-					if (AngularLimits[i].TwistAxis == EAngularLimitAxis::Y)
+					if (AngularLimit.TwistAxis == EAngularLimitAxis::Y)
 					{
-						auto q2 = q;
 						if (AngularLimit.Swing1Axis == EAngularLimitAxis::X)
 						{
-							q.X = q2.Y;
-							q.Y = q2.X;
-							q.Z = q2.Z;
+							q = FQuat(q.Y, q.X, q.Z, q.W);
 						}
 						else if (AngularLimit.Swing1Axis == EAngularLimitAxis::Z)
 						{
-							q.X = q2.Y;
-							q.Y = q2.Z;
-							q.Z = q2.X;
+							q = FQuat(q.Y, q.Z, q.X, q.W);
 						}
 					}
 					else if (AngularLimit.TwistAxis == EAngularLimitAxis::Z)
 					{
-						auto q2 = q;
 						if (AngularLimit.Swing1Axis == EAngularLimitAxis::X)
 						{
-							q.X = q2.Z;
-							q.Y = q2.X;
-							q.Z = q2.Y;
+							q = FQuat(q.Z, q.X, q.Y, q.W);
 						}
 						else
 						{
-							q.X = q2.Z;
-							q.Z = q2.X;
+							q = FQuat(q.Z, q.Y, q.X, q.W);
 						}
 					}
 					else if (AngularLimit.Swing1Axis == EAngularLimitAxis::Z)
 					{
-						auto q2 = q;
-						q.Y = q2.Z;
-						q.Z = q2.Y;
+						q = FQuat(q.X, q.Z, q.Y, q.W);
 					}
 
 					// decomposition to swing and twist and clamp
@@ -831,40 +820,29 @@ void FAnimNode_KawaiiPhysics::ApplySimuateResult(FComponentSpacePoseContext& Out
 					// revert swaped axis
 					if (AngularLimit.TwistAxis == EAngularLimitAxis::Y)
 					{
-						auto q2 = q;
 						if (AngularLimit.Swing1Axis == EAngularLimitAxis::X)
 						{
-							q.X = q2.Y;
-							q.Y = q2.X;
-							q.Z = q2.Z;
+							q = FQuat(q.Y, q.X, q.Z, q.W);
 						}
 						else if (AngularLimit.Swing1Axis == EAngularLimitAxis::Z)
 						{
-							q.X = q2.Y;
-							q.Y = q2.Z;
-							q.Z = q2.X;
+							q = FQuat(q.Y, q.Z, q.X, q.W);
 						}
 					}
 					else if (AngularLimit.TwistAxis == EAngularLimitAxis::Z)
 					{
-						auto q2 = q;
 						if (AngularLimit.Swing1Axis == EAngularLimitAxis::X)
 						{
-							q.X = q2.Z;
-							q.Y = q2.X;
-							q.Z = q2.Y;
+							q = FQuat(q.Z, q.X, q.Y, q.W);
 						}
 						else
 						{
-							q.X = q2.Z;
-							q.Z = q2.X;
+							q = FQuat(q.Z, q.Y, q.X, q.W);
 						}
 					}
 					else if (AngularLimit.Swing1Axis == EAngularLimitAxis::Z)
 					{
-						auto q2 = q;
-						q.Y = q2.Z;
-						q.Z = q2.Y;
+						q = FQuat(q.X, q.Z, q.Y, q.W);
 					}
 
 					SimulateRotation = ParentBone.PoseRotation * q;
