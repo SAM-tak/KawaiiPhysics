@@ -23,6 +23,14 @@ enum class EPlanarConstraint : uint8
 };
 
 UENUM()
+enum class EAngularLimitAxis : uint8
+{
+	X,
+	Y,
+	Z,
+};
+
+UENUM()
 enum class EBoneForwardAxis : uint8
 {
 	X_Positive,
@@ -92,6 +100,30 @@ struct FPlanarLimit : public FCollisionLimitBase
 };
 
 USTRUCT(BlueprintType)
+struct FAngularLimit
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, category = "KawaiiPhysics")
+	EAngularLimitAxis TwistAxis = EAngularLimitAxis::X;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, category = "KawaiiPhysics")
+	EAngularLimitAxis Swing1Axis = EAngularLimitAxis::Y;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (PinHiddenByDefault, UIMin = "0", UIMax = "180", ClampMin = "0", ClampMax = "180"), category = "KawaiiPhysics")
+	float TwistPositiveLimitAngle = 0.0f;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (PinHiddenByDefault, UIMin = "0", UIMax = "180", ClampMin = "0", ClampMax = "180"), category = "KawaiiPhysics")
+	float TwistNegativeLimitAngle = 0.0f;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (PinHiddenByDefault, UIMin = "0", UIMax = "180", ClampMin = "0", ClampMax = "180"), category = "KawaiiPhysics")
+	float Swing1LimitAngle = 0.0f;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (PinHiddenByDefault, UIMin = "0", UIMax = "180", ClampMin = "0", ClampMax = "180"), category = "KawaiiPhysics")
+	float Swing2LimitAngle = 0.0f;
+
+	bool IsValid()
+	{
+		return TwistAxis != Swing1Axis && (TwistPositiveLimitAngle > 0 || TwistNegativeLimitAngle > 0 || Swing1LimitAngle > 0 || Swing2LimitAngle > 0);
+	}
+};
+
+USTRUCT(BlueprintType)
 struct KAWAIIPHYSICS_API FKawaiiPhysicsSettings
 {
 	GENERATED_BODY()
@@ -108,12 +140,6 @@ struct KAWAIIPHYSICS_API FKawaiiPhysicsSettings
 	float Radius = 3.0f;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (PinHiddenByDefault, UIMin = "0", UIMax = "180", ClampMin = "0", ClampMax = "180"), category = "KawaiiPhysics")
 	float LimitAngle = 0.0f;
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (PinHiddenByDefault), category = "KawaiiPhysics")
-	bool bUseSplitAxisLimit = false;
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (PinHiddenByDefault, EditCondition = "bUseSplitAxisLimit", UIMin = "0", UIMax = "180", ClampMin = "0", ClampMax = "180"), category = "KawaiiPhysics")
-	FVector AngularLimitPositiveMax;
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (PinHiddenByDefault, EditCondition = "bUseSplitAxisLimit", UIMin = "0", UIMax = "180", ClampMin = "0", ClampMax = "180"), category = "KawaiiPhysics")
-	FVector AngularLimitNegativeMax;
 };
 
 USTRUCT()
@@ -148,7 +174,6 @@ public:
 	float LengthFromRoot;
 	UPROPERTY()
 	bool bDummy = false;
-
 
 public:
 
@@ -189,7 +214,7 @@ public:
 	/** Settings for control of physical behavior */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Physics Settings", meta = (PinHiddenByDefault))
 	FKawaiiPhysicsSettings PhysicsSettings;
-	
+
 	/** Curve for adjusting the set value of physical behavior. Use rate of bone length from Root */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Physics Settings", meta = (PinHiddenByDefault))
 	UCurveFloat* DampingCurve = nullptr;
@@ -232,11 +257,13 @@ public:
 
 
 	UPROPERTY(EditAnywhere, Category = "Spherical Limits")
-	TArray< FSphericalLimit> SphericalLimits;
+	TArray<FSphericalLimit> SphericalLimits;
 	UPROPERTY(EditAnywhere, Category = "Capsule Limits")
-	TArray< FCapsuleLimit> CapsuleLimits;
+	TArray<FCapsuleLimit> CapsuleLimits;
 	UPROPERTY(EditAnywhere, Category = "Planar Limits")
-	TArray< FPlanarLimit> PlanarLimits;
+	TArray<FPlanarLimit> PlanarLimits;
+	UPROPERTY(EditAnywhere, Category = "Angular Limits")
+	TArray<FAngularLimit> AngularLimits;
 
 	/** If the movement amount of one frame exceeds the threshold, ignore the movement  */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Teleport", meta = (PinHiddenByDefault))
