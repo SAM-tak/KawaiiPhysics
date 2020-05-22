@@ -23,6 +23,14 @@ enum class EPlanarConstraint : uint8
 };
 
 UENUM()
+enum class EAngularLimitAxis : uint8
+{
+	X,
+	Y,
+	Z,
+};
+
+UENUM()
 enum class EBoneForwardAxis : uint8
 {
 	X_Positive,
@@ -36,7 +44,7 @@ enum class EBoneForwardAxis : uint8
 USTRUCT()
 struct FCollisionLimitBase
 {
-	GENERATED_BODY();
+	GENERATED_BODY()
 
 	/** Bone to attach the sphere to */
 	UPROPERTY(EditAnywhere, Category = CollisionLimitBase)
@@ -59,7 +67,7 @@ struct FCollisionLimitBase
 USTRUCT()
 struct FSphericalLimit : public FCollisionLimitBase
 {
-	GENERATED_BODY();
+	GENERATED_BODY()
 
 	/** Radius of the sphere */
 	UPROPERTY(EditAnywhere, Category = SphericalLimit, meta = (ClampMin = "0"))
@@ -73,7 +81,7 @@ struct FSphericalLimit : public FCollisionLimitBase
 USTRUCT()
 struct FCapsuleLimit : public FCollisionLimitBase
 {
-	GENERATED_BODY();
+	GENERATED_BODY()
 
 	UPROPERTY(EditAnywhere, Category = CapsuleLimit, meta = (ClampMin = "0"))
 	float Radius = 5.0f;
@@ -85,10 +93,34 @@ struct FCapsuleLimit : public FCollisionLimitBase
 USTRUCT()
 struct FPlanarLimit : public FCollisionLimitBase
 {
-	GENERATED_BODY();
+	GENERATED_BODY()
 
 	UPROPERTY()
 	FPlane Plane;
+};
+
+USTRUCT(BlueprintType)
+struct FAngularLimit
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, category = "KawaiiPhysics")
+	EAngularLimitAxis TwistAxis = EAngularLimitAxis::X;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, category = "KawaiiPhysics")
+	EAngularLimitAxis Swing1Axis = EAngularLimitAxis::Y;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (PinHiddenByDefault, UIMin = "0", UIMax = "180", ClampMin = "0", ClampMax = "180"), category = "KawaiiPhysics")
+	float TwistPositiveLimitAngle = 0.0f;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (PinHiddenByDefault, UIMin = "0", UIMax = "180", ClampMin = "0", ClampMax = "180"), category = "KawaiiPhysics")
+	float TwistNegativeLimitAngle = 0.0f;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (PinHiddenByDefault, UIMin = "0", UIMax = "180", ClampMin = "0", ClampMax = "180"), category = "KawaiiPhysics")
+	float Swing1LimitAngle = 0.0f;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (PinHiddenByDefault, UIMin = "0", UIMax = "180", ClampMin = "0", ClampMax = "180"), category = "KawaiiPhysics")
+	float Swing2LimitAngle = 0.0f;
+
+	bool IsValid()
+	{
+		return TwistAxis != Swing1Axis && (TwistPositiveLimitAngle > 0 || TwistNegativeLimitAngle > 0 || Swing1LimitAngle > 0 || Swing2LimitAngle > 0);
+	}
 };
 
 USTRUCT(BlueprintType)
@@ -106,7 +138,7 @@ struct KAWAIIPHYSICS_API FKawaiiPhysicsSettings
 	float Stiffness = 0.05f;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (ClampMin = "0"), category = "KawaiiPhysics")
 	float Radius = 3.0f;
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (PinHiddenByDefault, ClampMin = "0"), category = "KawaiiPhysics")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (PinHiddenByDefault, UIMin = "0", UIMax = "180", ClampMin = "0", ClampMax = "180"), category = "KawaiiPhysics")
 	float LimitAngle = 0.0f;
 };
 
@@ -142,7 +174,6 @@ public:
 	float LengthFromRoot;
 	UPROPERTY()
 	bool bDummy = false;
-
 
 public:
 
@@ -183,7 +214,7 @@ public:
 	/** Settings for control of physical behavior */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Physics Settings", meta = (PinHiddenByDefault))
 	FKawaiiPhysicsSettings PhysicsSettings;
-	
+
 	/** Curve for adjusting the set value of physical behavior. Use rate of bone length from Root */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Physics Settings", meta = (PinHiddenByDefault))
 	UCurveFloat* DampingCurve = nullptr;
@@ -226,11 +257,13 @@ public:
 
 
 	UPROPERTY(EditAnywhere, Category = "Spherical Limits")
-	TArray< FSphericalLimit> SphericalLimits;
+	TArray<FSphericalLimit> SphericalLimits;
 	UPROPERTY(EditAnywhere, Category = "Capsule Limits")
-	TArray< FCapsuleLimit> CapsuleLimits;
+	TArray<FCapsuleLimit> CapsuleLimits;
 	UPROPERTY(EditAnywhere, Category = "Planar Limits")
-	TArray< FPlanarLimit> PlanarLimits;
+	TArray<FPlanarLimit> PlanarLimits;
+	UPROPERTY(EditAnywhere, Category = "Angular Limits")
+	TArray<FAngularLimit> AngularLimits;
 
 	/** If the movement amount of one frame exceeds the threshold, ignore the movement  */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Teleport", meta = (PinHiddenByDefault))
@@ -280,14 +313,8 @@ public:
 	// FAnimNode_Base interface
 	//virtual void GatherDebugData(FNodeDebugData& DebugData) override;
 	virtual void Initialize_AnyThread(const FAnimationInitializeContext& Context) override;
-	virtual void CacheBones_AnyThread(const FAnimationCacheBonesContext& Context) override;
+	//virtual void CacheBones_AnyThread(const FAnimationCacheBonesContext& Context) override;
 	// End of FAnimNode_Base interface
-
-	// FAnimNode_SkeletalControlBase interface
-	virtual void EvaluateSkeletalControl_AnyThread(FComponentSpacePoseContext& Output, TArray<FBoneTransform>& OutBoneTransforms) override;
-	virtual bool IsValidToEvaluate(const USkeleton* Skeleton, const FBoneContainer& RequiredBones) override;
-	virtual void UpdateInternal(const FAnimationUpdateContext& Context) override;
-	// End of FAnimNode_SkeletalControlBase interface
 
 	// 
 	void InitModifyBones(FComponentSpacePoseContext& Output, const FBoneContainer& BoneContainer);
@@ -296,7 +323,6 @@ public:
 		return TotalBoneLength;
 	}
 
-private:
 	FVector GetBoneForwardVector(const FQuat& Rotation)
 	{
 		switch(BoneForwardAxis) {
@@ -315,9 +341,16 @@ private:
 			return -Rotation.GetAxisZ();
 		}
 	}
+
+protected:
 	// FAnimNode_SkeletalControlBase interface
+	virtual void EvaluateSkeletalControl_AnyThread(FComponentSpacePoseContext& Output, TArray<FBoneTransform>& OutBoneTransforms) override;
+	virtual bool IsValidToEvaluate(const USkeleton* Skeleton, const FBoneContainer& RequiredBones) override;
+	virtual void UpdateInternal(const FAnimationUpdateContext& Context) override;
 	virtual void InitializeBoneReferences(const FBoneContainer& RequiredBones) override;
 	// End of FAnimNode_SkeletalControlBase interface
+
+private:
 
 	int AddModifyBone(FComponentSpacePoseContext& Output, const FBoneContainer& BoneContainer, const FReferenceSkeleton& RefSkeleton, int BoneIndex);
 	
@@ -336,7 +369,6 @@ private:
 	void AdjustByPlanerCollision(FKawaiiPhysicsModifyBone& Bone);
 	void AdjustByAngleLimit(FComponentSpacePoseContext& Output, const FBoneContainer& BoneContainer, FTransform& ComponentTransform, FKawaiiPhysicsModifyBone& Bone, FKawaiiPhysicsModifyBone& ParentBone);
 	void AdjustByPlanarConstraint(FKawaiiPhysicsModifyBone& Bone, FKawaiiPhysicsModifyBone& ParentBone);
-	
 
 	void ApplySimuateResult(FComponentSpacePoseContext& Output, const FBoneContainer& BoneContainer, TArray<FBoneTransform>& OutBoneTransforms);
 	
