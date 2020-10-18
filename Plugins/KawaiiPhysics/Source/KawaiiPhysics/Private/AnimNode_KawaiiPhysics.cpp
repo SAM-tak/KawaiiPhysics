@@ -279,9 +279,11 @@ DECLARE_CYCLE_STAT(TEXT("KawaiiPhysics_UpdatePhysicsSetting"), STAT_KawaiiPhysic
 
 void FAnimNode_KawaiiPhysics::UpdatePhysicsSettingsOfModifyBones()
 {
-	for (auto& Bone : ModifyBones)
+	for (int i = 0; i < ModifyBones.Num(); ++i)
 	{
 		SCOPE_CYCLE_COUNTER(STAT_KawaiiPhysics_UpdatePhysicsSetting);
+
+		auto& Bone = ModifyBones[i];
 
 		float LengthRate = Bone.LengthFromRoot / TotalBoneLength;
 
@@ -332,6 +334,11 @@ void FAnimNode_KawaiiPhysics::UpdatePhysicsSettingsOfModifyBones()
 			Bone.PhysicsSettings.LimitAngle *= LimitAngleCurve->GetFloatValue(LengthRate);
 		}
 		Bone.PhysicsSettings.LimitAngle = FMath::Max<float>(Bone.PhysicsSettings.LimitAngle, 0.0f);
+
+		if (i < AngularLimits.Num() && AngularLimits[i].IsValid() && Bone.PhysicsSettings.LimitAngle == 0.0f)
+		{
+			Bone.PhysicsSettings.LimitAngle = 179.5f;
+		}
 	}
 }
 

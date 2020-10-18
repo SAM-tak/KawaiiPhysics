@@ -108,13 +108,13 @@ struct FAngularLimit
 	EAngularLimitAxis TwistAxis = EAngularLimitAxis::X;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, category = "KawaiiPhysics")
 	EAngularLimitAxis Swing1Axis = EAngularLimitAxis::Y;
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (PinHiddenByDefault, UIMin = "0", UIMax = "180", ClampMin = "0", ClampMax = "180"), category = "KawaiiPhysics")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (PinHiddenByDefault, UIMin = "0", UIMax = "179", ClampMin = "0", ClampMax = "179"), category = "KawaiiPhysics")
 	float TwistPositiveLimitAngle = 0.0f;
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (PinHiddenByDefault, UIMin = "0", UIMax = "180", ClampMin = "0", ClampMax = "180"), category = "KawaiiPhysics")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (PinHiddenByDefault, UIMin = "0", UIMax = "179", ClampMin = "0", ClampMax = "179"), category = "KawaiiPhysics")
 	float TwistNegativeLimitAngle = 0.0f;
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (PinHiddenByDefault, UIMin = "0", UIMax = "180", ClampMin = "0", ClampMax = "180"), category = "KawaiiPhysics")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (PinHiddenByDefault, UIMin = "0", UIMax = "179", ClampMin = "0", ClampMax = "179"), category = "KawaiiPhysics")
 	float Swing1LimitAngle = 0.0f;
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (PinHiddenByDefault, UIMin = "0", UIMax = "180", ClampMin = "0", ClampMax = "180"), category = "KawaiiPhysics")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (PinHiddenByDefault, UIMin = "0", UIMax = "179", ClampMin = "0", ClampMax = "179"), category = "KawaiiPhysics")
 	float Swing2LimitAngle = 0.0f;
 
 	bool IsValid()
